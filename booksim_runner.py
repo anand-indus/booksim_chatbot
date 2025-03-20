@@ -1,5 +1,7 @@
 import subprocess
 import os
+import re
+from thefuzz import fuzz
 
 # Mapping user input to config files
 CONFIG_MAP = {
@@ -12,13 +14,29 @@ CONFIG_MAP = {
     "single": "singleconfig"
 }
 
+def clean_input(user_input):
+    """Clean and preprocess the input for better matching."""
+    # Convert to lowercase and remove special characters
+    cleaned_input = re.sub(r'[^a-zA-Z0-9\s]', '', user_input.lower())
+    return cleaned_input
+
 def get_config_from_input(user_input):
-    """Find the matching config based on user input."""
-    user_input = user_input.lower().replace(" ", "")
-    for key, config_file in CONFIG_MAP.items():
-        # Remove spaces from key to match flexible user inputs
-        if key.replace(" ", "") in user_input:
-            return config_file
+    """Find the best matching config using fuzzy matching."""
+    cleaned_input = clean_input(user_input)
+
+    best_match = None
+    highest_ratio = 0
+
+    # Compare user input with all possible config options
+    for key in CONFIG_MAP.keys():
+        similarity_ratio = fuzz.partial_ratio(cleaned_input, key)
+        
+        if similarity_ratio > highest_ratio and similarity_ratio >= 70:  # Threshold at 70 for good match
+            highest_ratio = similarity_ratio
+            best_match = CONFIG_MAP[key]
+
+    if best_match:
+        return best_match
     return None
 
 def run_simulation(config_file):
