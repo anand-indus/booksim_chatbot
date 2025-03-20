@@ -1,6 +1,7 @@
 import subprocess
 import os
 import re
+import shutil
 from thefuzz import process
 
 # Mapping user input to config files
@@ -41,21 +42,64 @@ def get_best_match(user_input):
         return best_match
     return None
 
+def modify_config(config_path):
+    """Modify parameters dynamically in the config file."""
+    temp_config_path = f"{config_path}_temp"  # Fix: Create a distinct temp file
+    shutil.copy(config_path, temp_config_path)  # Copy original config to temp
+
+    with open(temp_config_path, "r") as f:
+        config_lines = f.readlines()
+
+    print("\n⚙️ Available parameters to modify (or type 'done' to finish):")
+    param_map = {}
+    for i, line in enumerate(config_lines):
+        match = re.match(r"(\w+)\s*=\s*(.+)", line.strip())
+        if match:
+            param_name, param_value = match.groups()
+            param_map[param_name] = i
+            print(f"🔧 {param_name} = {param_value}")
+
+    while True:
+        param_to_modify = input("\nEnter parameter to modify (or type 'done' to finish): ").strip()
+        
+        if param_to_modify.lower() == "done":
+            break
+        
+        # Extract parameter name and value using regex
+        match = re.search(r"(\w+)\s*=\s*([\d.]+)", param_to_modify)
+        if not match:
+            match = re.search(r"(change|update|set)?\s*(\w+)\s*(to|is|=)\s*([\d.]+)", param_to_modify)
+
+        if match:
+            param_name = match.group(2)  # Extracted parameter name
+            new_value = match.group(4)   # Extracted new value
+            
+            if param_name in param_map:
+                line_index = param_map[param_name]
+                config_lines[line_index] = f"{param_name} = {new_value};\n"
+                print(f"✅ Updated: {param_name} = {new_value}")
+            else:
+                print(f"❌ Parameter '{param_name}' not found in config.")
+        else:
+            print("❌ Couldn't understand. Try: 'k=10' or 'change k to 4'")
+
+    with open(temp_config_path, "w") as f:
+        f.writelines(config_lines)
+
+    print(f"✅ Modified config saved as: {temp_config_path}")
+    return temp_config_path
+
 def run_simulation(config_file):
     """Run BookSim simulation with the selected config."""
     config_path = f"/home/param/Desktop/noc_tools/booksim2/src/examples/{config_file}"
-    cmd_list = ["/home/param/Desktop/noc_tools/booksim2/src/booksim", config_path]
+    temp_config_path = modify_config(config_path)  # Get modified config
     
-    print(f"📄 Checking config file at: {config_path}")
-    print(f"🛠️ Running Command with List: {cmd_list}")
+    cmd_list = ["/home/param/Desktop/noc_tools/booksim2/src/booksim", temp_config_path]
     
-    # Double-check if the config file exists
-    if not os.path.exists(config_path):
-        print(f"❌ Error: Config file not found at {config_path}")
-        return
-
+    print(f"📄 Using modified config at: {temp_config_path}")
+    print(f"🛠️ Running Command: {cmd_list}")
+    
     try:
-        # Run the process and print output in real-time
         process = subprocess.Popen(
             cmd_list,
             stdout=subprocess.PIPE,
@@ -65,18 +109,13 @@ def run_simulation(config_file):
             env=os.environ
         )
 
-        # Show the output directly in the terminal
         for line in process.stdout:
             print(line, end="")
-
-        # Show errors if any
         for line in process.stderr:
             print(f"⚠️ {line}", end="")
 
-        # Wait for the process to complete
         process.wait()
 
-        # Check return code
         if process.returncode == 0:
             print("✅ Simulation Successful!")
         else:
@@ -84,6 +123,10 @@ def run_simulation(config_file):
     
     except Exception as e:
         print(f"⚠️ Unexpected Error: {e}")
+    
+    os.remove(temp_config_path)  # Cleanup temp file
+    print(f"🧹 Temporary config '{temp_config_path}' deleted after simulation.")
+
 
 # Continuous loop until 'exit' or 'quit' is entered
 if __name__ == "__main__":
