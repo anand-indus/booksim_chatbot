@@ -5,14 +5,19 @@ import os
 CONFIG_MAP = {
     "8x8 mesh": "mesh88_lat",
     "8x8 torus": "torus88",
-    "fat tree": "fattree_config"
+    "fat tree": "fattree_config",
+    "cmesh": "cmeshconfig",
+    "dragonfly": "dragonflyconfig",
+    "flat fly": "flatflyconfig",
+    "single": "singleconfig"
 }
 
 def get_config_from_input(user_input):
     """Find the matching config based on user input."""
-    user_input = user_input.lower()
+    user_input = user_input.lower().replace(" ", "")
     for key, config_file in CONFIG_MAP.items():
-        if key in user_input:
+        # Remove spaces from key to match flexible user inputs
+        if key.replace(" ", "") in user_input:
             return config_file
     return None
 
@@ -76,4 +81,3 @@ if __name__ == "__main__":
             run_simulation(config_file)
         else:
             print("❌ No matching configuration found. Please try again!")
-
