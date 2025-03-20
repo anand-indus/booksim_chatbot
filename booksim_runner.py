@@ -1,7 +1,7 @@
 import subprocess
 import os
 import re
-from thefuzz import fuzz
+from thefuzz import process
 
 # Mapping user input to config files
 CONFIG_MAP = {
@@ -10,32 +10,34 @@ CONFIG_MAP = {
     "fat tree": "fattree_config",
     "cmesh": "cmeshconfig",
     "dragonfly": "dragonflyconfig",
-    "flat fly": "flatflyconfig",
+    "flatfly": "flatflyconfig",
     "single": "singleconfig"
 }
 
-def clean_input(user_input):
-    """Clean and preprocess the input for better matching."""
-    # Convert to lowercase and remove special characters
-    cleaned_input = re.sub(r'[^a-zA-Z0-9\s]', '', user_input.lower())
-    return cleaned_input
+def extract_relevant_keywords(user_input):
+    """Extract relevant keywords for better matching."""
+    # Define possible keywords
+    keywords = [
+        "mesh", "torus", "fat tree", "cmesh", "dragonfly",
+        "flatfly", "single", "8x8"
+    ]
+    
+    # Extract keywords that exist in the user's input
+    found_keywords = [word for word in keywords if word in user_input.lower()]
+    
+    # Return a clean, joined string of relevant keywords
+    return " ".join(found_keywords)
 
-def get_config_from_input(user_input):
-    """Find the best matching config using fuzzy matching."""
-    cleaned_input = clean_input(user_input)
-
-    best_match = None
-    highest_ratio = 0
-
-    # Compare user input with all possible config options
-    for key in CONFIG_MAP.keys():
-        similarity_ratio = fuzz.partial_ratio(cleaned_input, key)
-        
-        if similarity_ratio > highest_ratio and similarity_ratio >= 70:  # Threshold at 70 for good match
-            highest_ratio = similarity_ratio
-            best_match = CONFIG_MAP[key]
-
-    if best_match:
+def get_best_match(user_input):
+    """Find the best matching config based on fuzzy logic."""
+    cleaned_input = extract_relevant_keywords(user_input)
+    
+    if not cleaned_input:
+        return None  # No relevant keywords found, avoid bad matches
+    
+    best_match, score = process.extractOne(cleaned_input, CONFIG_MAP.keys())
+    
+    if score >= 70:  # Accept match only if confidence is 70% or higher
         return best_match
     return None
 
@@ -92,10 +94,16 @@ if __name__ == "__main__":
             print("👋 Exiting simulation. Goodbye!")
             break
         
-        config_file = get_config_from_input(user_input)
+        best_match = get_best_match(user_input)
         
-        if config_file:
-            print(f"🔍 Matching config found: {config_file}")
-            run_simulation(config_file)
+        if best_match:
+            config_file = CONFIG_MAP[best_match]
+            confirmation = input(f"🤔 Did you mean '{best_match}'? (yes/no): ").strip().lower()
+
+            if confirmation in ["yes", "y"]:
+                print(f"🔍 Matching config confirmed: {best_match}")
+                run_simulation(config_file)
+            else:
+                print("🔄 Please rephrase or provide more details.")
         else:
             print("❌ No matching configuration found. Please try again!")
