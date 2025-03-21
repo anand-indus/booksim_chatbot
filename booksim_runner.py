@@ -50,7 +50,10 @@ def modify_config(config_path):
     with open(temp_config_path, "r") as f:
         config_lines = f.readlines()
 
-    print("\n⚙️ Available parameters to modify (or type 'done' to finish):")
+    print("\n⚙️ Here are the available parameters which you can modify.")
+    print("If you don't want to change any parameter and want to simulate the example, type 'done' to move on to simulation.")
+    print("Type 'exit' or 'quit' anytime to stop immediately.")
+
     param_map = {}
     for i, line in enumerate(config_lines):
         match = re.match(r"(\w+)\s*=\s*(.+)", line.strip())
@@ -60,28 +63,36 @@ def modify_config(config_path):
             print(f"🔧 {param_name} = {param_value}")
 
     while True:
-        param_to_modify = input("\nEnter parameter to modify (or type 'done' to finish): ").strip()
+        param_to_modify = input("\nEnter parameter(s) to modify (e.g., 'k=4, n=3') or type 'done' to finish: ").strip()
         
+        # Check if the user wants to exit
+        if param_to_modify.lower() in ["exit", "quit"]:
+            print("👋 Exiting simulation. Goodbye!")
+            exit(0)
+
         if param_to_modify.lower() == "done":
             break
         
-        # Extract parameter name and value using regex
-        match = re.search(r"(\w+)\s*=\s*([\d.]+)", param_to_modify)
-        if not match:
-            match = re.search(r"(change|update|set)?\s*(\w+)\s*(to|is|=)\s*([\d.]+)", param_to_modify)
+        # Split and process multiple parameter changes in one go
+        param_changes = [param.strip() for param in param_to_modify.split(",")]
+        
+        for change in param_changes:
+            match = re.match(r"(\w+)\s*=\s*([\d.]+)", change)
+            if not match:
+                match = re.match(r"(change|update|set)?\s*(\w+)\s*(to|is|=)\s*([\d.]+)", change)
 
-        if match:
-            param_name = match.group(2)  # Extracted parameter name
-            new_value = match.group(4)   # Extracted new value
-            
-            if param_name in param_map:
-                line_index = param_map[param_name]
-                config_lines[line_index] = f"{param_name} = {new_value};\n"
-                print(f"✅ Updated: {param_name} = {new_value}")
+            if match:
+                param_name = match.group(2)  # Extracted parameter name
+                new_value = match.group(4)   # Extracted new value
+                
+                if param_name in param_map:
+                    line_index = param_map[param_name]
+                    config_lines[line_index] = f"{param_name} = {new_value};\n"
+                    print(f"✅ Updated: {param_name} = {new_value}")
+                else:
+                    print(f"❌ Parameter '{param_name}' not found in config.")
             else:
-                print(f"❌ Parameter '{param_name}' not found in config.")
-        else:
-            print("❌ Couldn't understand. Try: 'k=10' or 'change k to 4'")
+                print(f"❌ Couldn't understand '{change}'. Use format like 'k=4, n=3'")
 
     with open(temp_config_path, "w") as f:
         f.writelines(config_lines)
@@ -131,8 +142,9 @@ def run_simulation(config_file):
 # Continuous loop until 'exit' or 'quit' is entered
 if __name__ == "__main__":
     while True:
-        user_input = input("\nEnter simulation details (or type 'exit' to quit): ")
+        user_input = input("\nEnter simulation details (or type 'exit' to quit): ").strip()
         
+        # Check if user wants to quit from the main loop
         if user_input.lower() in ["exit", "quit"]:
             print("👋 Exiting simulation. Goodbye!")
             break
@@ -141,7 +153,11 @@ if __name__ == "__main__":
         
         if best_match:
             config_file = CONFIG_MAP[best_match]
-            confirmation = input(f"🤔 Did you mean '{best_match}'? (yes/no): ").strip().lower()
+            confirmation = input(
+                f"🤔 I sense that you want to simulate a NoC {best_match.lower()} topology. "
+                f"I have a default config file for the same. Do you want to continue with it? "
+                f"You can customize the parameters according to your need in the next step. (yes/no): "
+            ).strip().lower()
 
             if confirmation in ["yes", "y"]:
                 print(f"🔍 Matching config confirmed: {best_match}")
@@ -150,3 +166,4 @@ if __name__ == "__main__":
                 print("🔄 Please rephrase or provide more details.")
         else:
             print("❌ No matching configuration found. Please try again!")
+
